@@ -1431,3 +1431,23 @@ input[type="color"] {
     scroll-behavior: auto !important;
   }
 }
+
+/* Miniatures officielles des expériences Roblox */
+.game-thumb > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tier-game .mini-thumb {
+  overflow: hidden;
+}
+
+.tier-game .mini-thumb > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
