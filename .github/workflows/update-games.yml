@@ -29,14 +29,15 @@ jobs:
       - name: Importer les jeux Roblox
         run: python scripts/import_games.py
 
+     
       - name: Enregistrer le catalogue mis a jour
         run: |
-          if git diff --quiet -- games.json; then
+          git add games.json
+          if git diff --cached --quiet; then
             echo "Aucun changement dans games.json."
           else
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add games.json
             git commit -m "Mise a jour automatique du catalogue"
             git push
           fi
