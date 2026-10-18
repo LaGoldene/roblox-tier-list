@@ -110,7 +110,14 @@
   function refreshGameThumbnails() {
     document.querySelectorAll("[data-game-thumb]").forEach(function (element) {
       var game = byId[element.getAttribute("data-game-thumb")];
-      if (game) element.innerHTML = thumbContent(game);
+      if (!game) return;
+      element.innerHTML = thumbContent(game);
+      var image = element.querySelector("img");
+      if (image) {
+        image.addEventListener("error", function () {
+          element.textContent = initials(game.name || "");
+        }, { once: true });
+      }
     });
   }
 
@@ -118,84 +125,25 @@
     if (ROBLOX_THUMBNAILS_STARTED) return;
     ROBLOX_THUMBNAILS_STARTED = true;
 
-    var placeIds = Array.from(new Set(GAMES.filter(function (game) {
-      return Number(game.placeId) > 0;
-    }).map(function (game) { return Number(game.placeId); })));
-
-    function chunks(values, size) {
-      var result = [];
-      for (var i = 0; i < values.length; i += size) result.push(values.slice(i, i + size));
-      return result;
-    }
-
-    function getJson(url) {
-      return fetch(url, { mode: "cors", credentials: "omit" }).then(function (response) {
-        if (!response.ok) throw new Error("Roblox API HTTP " + response.status);
+    /* Miniatures pré-générées par GitHub Actions : pas d'appel API Roblox depuis le navigateur. */
+    fetch("thumbnails.json?update=" + Date.now(), { cache: "no-store" })
+      .then(function (response) {
+        if (!response.ok) throw new Error("HTTP " + response.status);
         return response.json();
-      });
-    }
-
-    var placeToUniverse = {};
-    var detailRequests = chunks(placeIds, 25).map(function (batch) {
-      var url = "https://games.roblox.com/v1/games/multiget-place-details?placeIds=" + batch.join(",");
-      return getJson(url).then(function (data) {
-        var entries = Array.isArray(data) ? data : (Array.isArray(data.data) ? data.data : []);
-        entries.forEach(function (entry) {
-          var placeId = Number(entry.placeId);
-          var universeId = Number(entry.universeId || entry.universeRootPlaceId);
-          if (placeId > 0 && universeId > 0) placeToUniverse[String(placeId)] = universeId;
+      })
+      .then(function (data) {
+        var thumbnails = data && data.thumbnails ? data.thumbnails : {};
+        Object.keys(thumbnails).forEach(function (placeId) {
+          var url = thumbnails[placeId];
+          if (typeof url === "string" && /^https:\/\//i.test(url)) {
+            ROBLOX_THUMBNAILS[String(placeId)] = url;
+          }
         });
-      }).catch(function (error) {
-        console.warn("Impossible de retrouver les univers Roblox pour un lot :", error);
+        refreshGameThumbnails();
+      })
+      .catch(function (error) {
+        console.warn("Miniatures locales indisponibles ; noms des jeux conservés :", error);
       });
-    });
-
-    Promise.all(detailRequests).then(function () {
-      var universeIds = Array.from(new Set(Object.keys(placeToUniverse).map(function (id) {
-        return placeToUniverse[id];
-      })));
-      return Promise.all(chunks(universeIds, 50).map(function (batch) {
-        if (!batch.length) return Promise.resolve();
-        var url = "https://thumbnails.roblox.com/v1/games/multiget/thumbnails?universeIds=" +
-          batch.join(",") + "&countPerUniverse=1&size=768x432&format=Png&isCircular=false";
-        return getJson(url).then(function (data) {
-          (data.data || []).forEach(function (entry) {
-            var thumbs = entry.thumbnails || [];
-            var thumb = thumbs.find(function (item) { return item && item.url; });
-            if (!thumb) return;
-            Object.keys(placeToUniverse).forEach(function (placeId) {
-              if (placeToUniverse[placeId] === Number(entry.universeId)) {
-                ROBLOX_THUMBNAILS[placeId] = thumb.url;
-              }
-            });
-          });
-        }).catch(function (error) {
-          console.warn("Miniatures Roblox indisponibles pour un lot :", error);
-        });
-      }));
-    }).then(function () {
-      var missingPlaceIds = placeIds.filter(function (id) {
-        return !ROBLOX_THUMBNAILS[String(id)];
-      });
-      return Promise.all(chunks(missingPlaceIds, 50).map(function (batch) {
-        if (!batch.length) return Promise.resolve();
-        var url = "https://thumbnails.roblox.com/v1/places/gameicons?placeIds=" +
-          batch.join(",") + "&size=512x512&format=Png&isCircular=false";
-        return getJson(url).then(function (data) {
-          (data.data || []).forEach(function (entry) {
-            if (entry && entry.imageUrl && Number(entry.targetId) > 0) {
-              ROBLOX_ICONS[String(entry.targetId)] = entry.imageUrl;
-            }
-          });
-        }).catch(function (error) {
-          console.warn("Icônes Roblox de secours indisponibles pour un lot :", error);
-        });
-      }));
-    }).then(function () {
-      refreshGameThumbnails();
-    }).catch(function (error) {
-      console.warn("Chargement des miniatures Roblox interrompu :", error);
-    });
   }
 
   function searchUrl(g) {
