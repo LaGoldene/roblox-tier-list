@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Roblox Tier List – Classe et découvre les meilleurs jeux Roblox</title>
+  <meta name="description" content="Découvre un grand catalogue de jeux Roblox, consulte les classements par rang S à D, crée tes propres Tier Lists et partage-les par lien.">
+  <meta name="theme-color" content="#0b0b1a">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b0b1a'/%3E%3Cpath d='M14 46V18h14q10 0 10 9t-10 9h-6v10z' fill='%238b5cf6'/%3E%3Crect x='40' y='34' width='12' height='12' rx='2' fill='%2338bdf8'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <a class="skip-link" href="#main">Aller au contenu</a>
+
+  <!-- ============ EN-TÊTE ============ -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="#/" aria-label="Roblox Tier List – Accueil">
+        <span class="brand-logo" aria-hidden="true">RT</span>
+        <span class="brand-text">Roblox <strong>Tier List</strong></span>
+      </a>
+
+      <button class="nav-toggle" id="nav-toggle" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="main-nav">
+        <span></span><span></span><span></span>
+      </button>
+
+      <nav class="main-nav" id="main-nav" aria-label="Navigation principale">
+        <a href="#/" data-nav="home">Accueil</a>
+        <a href="#/catalogue" data-nav="catalog">Catalogue</a>
+        <a href="#/classement" data-nav="ranking">Classement</a>
+        <a href="#/createur" data-nav="tierlist">Créateur</a>
+        <a href="#/favoris" data-nav="favorites">Favoris <span class="badge" id="fav-count">0</span></a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+
+    <!-- ============ VUE : ACCUEIL ============ -->
+    <section class="view" id="view-home" data-view="home" hidden>
+      <div class="hero">
+        <div class="container hero-inner">
+          <p class="eyebrow">Le guide communautaire des jeux Roblox</p>
+          <h1>Découvre, classe et partage <span class="gradient-text">les meilleurs jeux Roblox</span></h1>
+          <p class="hero-sub">Explore un grand catalogue organisé par catégories, consulte un classement de S à D et crée tes propres Tier Lists à partager avec tes amis en un simple lien.</p>
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="#/catalogue">Explorer le catalogue</a>
+            <a class="btn btn-secondary" href="#/createur">Créer ma Tier List</a>
+          </div>
+          <ul class="hero-stats" aria-label="Chiffres du site">
+            <li><strong id="stat-games">0</strong><span>jeux au catalogue</span></li>
+            <li><strong id="stat-categories">0</strong><span>catégories</span></li>
+            <li><strong id="stat-lists">0</strong><span>Tier Lists sauvegardées</span></li>
+          </ul>
+          <p class="small muted hero-note">Le catalogue n'est pas exhaustif : Roblox compte des millions d'expériences. Tu peux ajouter tes propres jeux depuis la page Catalogue.</p>
+        </div>
+      </div>
+
+      <div class="container">
+        <section class="block" aria-labelledby="home-cat-title">
+          <div class="block-head">
+            <h2 id="home-cat-title">Parcourir par catégorie</h2>
+            <a class="link-more" href="#/catalogue">Tout voir →</a>
+          </div>
+          <div class="category-grid" id="home-categories"></div>
+        </section>
+
+        <section class="block" aria-labelledby="home-top-title">
+          <div class="block-head">
+            <h2 id="home-top-title">Les mieux classés</h2>
+            <a class="link-more" href="#/classement">Voir le classement complet →</a>
+          </div>
+          <div class="games-grid" id="home-top"></div>
+        </section>
+
+        <section class="block" aria-labelledby="home-how-title">
+          <div class="block-head">
+            <h2 id="home-how-title">Comment ça marche ?</h2>
+          </div>
+          <div class="steps">
+            <article class="step-card">
+              <span class="step-num">1</span>
+              <h3>Choisis tes jeux</h3>
+              <p>Cherche par nom, filtre par catégorie ou ajoute des jeux à tes favoris.</p>
+            </article>
+            <article class="step-card">
+              <span class="step-num">2</span>
+              <h3>Classe-les</h3>
+              <p>Glisse chaque jeu dans un rang. Renomme les rangs, change les couleurs, ajoutes-en d'autres.</p>
+            </article>
+            <article class="step-card">
+              <span class="step-num">3</span>
+              <h3>Partage</h3>
+              <p>Génère un lien : tes amis peuvent voir ta Tier List et la dupliquer pour la modifier.</p>
+            </article>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <!-- ============ VUE : CATALOGUE ============ -->
+    <section class="view" id="view-catalog" data-view="catalog" hidden>
+      <div class="container">
+        <header class="page-head">
+          <h1>Catalogue des jeux</h1>
+          <p>Recherche, filtre et ouvre la fiche d'un jeu pour voir sa description, ses liens Roblox et la source de ses codes.</p>
+        </header>
+
+        <p class="notice" id="catalog-notice">
+          Ce catalogue est une sélection collaborative, <strong>non exhaustive</strong>. Certains jeux ont un lien direct vers leur page Roblox, d'autres ouvrent une recherche Roblox par nom. Les jeux « Non classé » n'ont pas encore reçu de rang éditorial.
+        </p>
+
+        <div class="toolbar">
+          <div class="field field-search">
+            <label for="search-input" class="sr-only">Rechercher un jeu</label>
+            <input type="search" id="search-input" placeholder="Rechercher un jeu, un genre, un mot-clé…" autocomplete="off">
+          </div>
+
+          <div class="field">
+            <label for="rank-filter">Rang</label>
+            <select id="rank-filter">
+              <option value="all">Tous les rangs</option>
+              <option value="S">Rang S</option>
+              <option value="A">Rang A</option>
+              <option value="B">Rang B</option>
+              <option value="C">Rang C</option>
+              <option value="D">Rang D</option>
+              <option value="none">Non classé</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="sort-select">Trier par</label>
+            <select id="sort-select">
+              <option value="rank">Rang (S → D)</option>
+              <option value="name">Nom (A → Z)</option>
+              <option value="category">Catégorie</option>
+            </select>
+          </div>
+
+          <label class="check">
+            <input type="checkbox" id="fav-only">
+            <span>Favoris uniquement</span>
+          </label>
+        </div>
+
+        <div class="chips" id="category-filters" role="group" aria-label="Filtrer par catégorie"></div>
+
+        <p class="results-count" id="results-count" aria-live="polite"></p>
+        <div class="games-grid" id="games-grid"></div>
+
+        <div class="load-more-wrap">
+          <button type="button" class="btn btn-secondary" id="load-more" hidden>Charger plus de jeux</button>
+        </div>
+
+        <div class="empty-state" id="empty-state" hidden>
+          <p class="empty-title">Aucun jeu ne correspond à ta recherche.</p>
+          <p>Essaie un autre mot-clé ou réinitialise les filtres.</p>
+          <button type="button" class="btn btn-secondary" id="reset-filters">Réinitialiser les filtres</button>
+        </div>
+
+        <!-- Ajout de jeux par l'utilisateur -->
+        <details class="add-games" id="add-games">
+          <summary>Ajouter des jeux au catalogue</summary>
+          <div class="add-games-body">
+            <p class="muted small">Les jeux ajoutés sont enregistrés uniquement dans ce navigateur. Ils apparaissent dans le catalogue, les favoris et le créateur de Tier Lists. Utilise le lien exact de la page du jeu sur Roblox (il ressemble à <code>https://www.roblox.com/games/123456789/Nom</code>).</p>
+
+            <form class="add-game-form" id="add-game-form">
+              <h3>Ajouter un seul jeu</h3>
+              <div class="add-game-row">
+                <div class="field field-grow">
+                  <label for="ag-name">Nom du jeu</label>
+                  <input type="text" id="ag-name" maxlength="60" placeholder="Nom du jeu" autocomplete="off">
+                </div>
+                <div class="field">
+                  <label for="ag-cat">Catégorie</label>
+                  <select id="ag-cat"></select>
+                </div>
+              </div>
+              <div class="field">
+                <label for="ag-url">Lien Roblox (facultatif)</label>
+                <input type="text" id="ag-url" maxlength="200" placeholder="https://www.roblox.com/games/…" autocomplete="off">
+              </div>
+              <div class="field">
+                <label for="ag-desc">Courte description (facultatif)</label>
+                <input type="text" id="ag-desc" maxlength="200" placeholder="En quelques mots…" autocomplete="off">
+              </div>
+              <button type="submit" class="btn btn-primary">Ajouter ce jeu</button>
+            </form>
+
+            <form class="add-game-form" id="bulk-form">
+              <h3>Ajout en lot</h3>
+              <p class="muted small">Une ligne par jeu, au format <code>Nom | lien Roblox</code> (le lien est facultatif). Tous les jeux seront rangés dans la catégorie choisie.</p>
+              <div class="field">
+                <label for="bulk-cat">Catégorie pour tous ces jeux</label>
+                <select id="bulk-cat"></select>
+              </div>
+              <div class="field">
+                <label for="bulk-text">Liste de jeux</label>
+                <textarea id="bulk-text" rows="6" placeholder="Mon jeu 1 | https://www.roblox.com/games/123456789/Mon-jeu-1&#10;Mon jeu 2"></textarea>
+              </div>
+              <button type="submit" class="btn btn-primary">Ajouter la liste</button>
+            </form>
+
+            <div class="custom-games">
+              <h3>Mes jeux ajoutés <span class="muted" id="custom-count"></span></h3>
+              <ul class="custom-list" id="custom-list"></ul>
+              <p class="muted small" id="custom-empty">Aucun jeu ajouté pour le moment.</p>
+            </div>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- ============ VUE : CLASSEMENT GÉNÉRAL ============ -->
+    <section class="view" id="view-ranking" data-view="ranking" hidden>
+      <div class="container">
+        <header class="page-head">
+          <h1>Classement général</h1>
+          <p>Un classement éditorial de S à D. Ce n'est pas un classement officiel de Roblox et il ne s'appuie sur aucune statistique en temps réel. Seuls les jeux qui ont reçu un rang y figurent.</p>
+        </header>
+
+        <div class="toolbar">
+          <div class="field">
+            <label for="ranking-category">Catégorie</label>
+            <select id="ranking-category"></select>
+          </div>
+          <button type="button" class="btn btn-secondary" id="ranking-to-creator">Copier ce classement dans le créateur</button>
+        </div>
+
+        <div class="tier-board tier-board-readonly" id="ranking-board"></div>
+      </div>
+    </section>
+
+    <!-- ============ VUE : CRÉATEUR DE TIER LIST ============ -->
+    <section class="view" id="view-tierlist" data-view="tierlist" hidden>
+      <div class="container">
+        <header class="page-head">
+          <h1>Créateur de Tier List</h1>
+          <p>Glisse les jeux dans les rangs. Sur téléphone : touche un jeu, puis touche le rang où le placer.</p>
+        </header>
+
+        <div class="editor-bar">
+          <div class="field field-grow">
+            <label for="tl-title">Titre de la Tier List</label>
+            <input type="text" id="tl-title" maxlength="60" placeholder="Ex : Mes jeux préférés de 2026">
+          </div>
+          <div class="editor-actions">
+            <button type="button" class="btn btn-primary" id="tl-save">Sauvegarder</button>
+            <button type="button" class="btn btn-accent" id="tl-share">Partager</button>
+            <button type="button" class="btn btn-secondary" id="tl-new">Nouvelle liste</button>
+            <button type="button" class="btn btn-ghost" id="tl-reset">Tout remettre dans la réserve</button>
+          </div>
+        </div>
+
+        <p class="hint" id="tl-selected-hint" aria-live="polite" hidden></p>
+
+        <div class="tier-board" id="tl-board"></div>
+
+        <form class="add-tier" id="tl-add-tier-form">
+          <h2>Ajouter un rang</h2>
+          <div class="add-tier-row">
+            <div class="field field-grow">
+              <label for="tl-new-tier-name">Nom du rang</label>
+              <input type="text" id="tl-new-tier-name" maxlength="20" placeholder="Ex : SS, Légendaire…">
+            </div>
+            <div class="field">
+              <label for="tl-new-tier-color">Couleur</label>
+              <input type="color" id="tl-new-tier-color" value="#8b5cf6">
+            </div>
+            <button type="submit" class="btn btn-secondary">Ajouter</button>
+          </div>
+        </form>
+
+        <section class="pool-section" aria-labelledby="pool-title">
+          <div class="block-head">
+            <h2 id="pool-title">Réserve de jeux <span class="muted" id="tl-pool-count"></span></h2>
+          </div>
+          <div class="toolbar toolbar-compact">
+            <div class="field field-search">
+              <label for="tl-pool-search" class="sr-only">Filtrer la réserve</label>
+              <input type="search" id="tl-pool-search" placeholder="Filtrer la réserve…" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="tl-pool-category">Catégorie</label>
+              <select id="tl-pool-category"></select>
+            </div>
+          </div>
+          <div class="pool" id="tl-pool" data-drop="pool"></div>
+          <div class="load-more-wrap">
+            <button type="button" class="btn btn-secondary" id="tl-pool-more" hidden>Afficher plus de jeux</button>
+          </div>
+        </section>
+
+        <section class="block" aria-labelledby="saved-title">
+          <div class="block-head">
+            <h2 id="saved-title">Mes Tier Lists sauvegardées</h2>
+          </div>
+          <div class="saved-list" id="tl-saved-list"></div>
+          <p class="muted" id="tl-saved-empty" hidden>Aucune Tier List sauvegardée pour le moment.</p>
+        </section>
+      </div>
+    </section>
+
+    <!-- ============ VUE : FAVORIS ============ -->
+    <section class="view" id="view-favorites" data-view="favorites" hidden>
+      <div class="container">
+        <header class="page-head">
+          <h1>Mes favoris</h1>
+          <p>Tes jeux favoris sont enregistrés uniquement dans ce navigateur.</p>
+        </header>
+        <div class="games-grid" id="favorites-grid"></div>
+        <div class="empty-state" id="favorites-empty" hidden>
+          <p class="empty-title">Tu n'as pas encore de favoris.</p>
+          <p>Clique sur le cœur d'un jeu pour l'ajouter ici.</p>
+          <a class="btn btn-primary" href="#/catalogue">Parcourir le catalogue</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ VUE : TIER LIST PARTAGÉE ============ -->
+    <section class="view" id="view-shared" data-view="shared" hidden>
+      <div class="container">
+        <header class="page-head">
+          <p class="eyebrow">Tier List partagée</p>
+          <h1 id="shared-title">Tier List</h1>
+          <p id="shared-meta"></p>
+        </header>
+
+        <div class="editor-actions shared-actions">
+          <button type="button" class="btn btn-primary" id="shared-duplicate">Dupliquer et modifier</button>
+          <button type="button" class="btn btn-secondary" id="shared-copy-link">Copier le lien</button>
+          <a class="btn btn-ghost" href="#/createur">Créer la mienne</a>
+        </div>
+
+        <div class="tier-board tier-board-readonly" id="shared-board"></div>
+
+        <div class="empty-state" id="shared-error" hidden>
+          <p class="empty-title">Ce lien de partage est invalide ou incomplet.</p>
+          <p>Demande à la personne de te renvoyer le lien complet.</p>
+          <a class="btn btn-primary" href="#/">Retour à l'accueil</a>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ============ FICHE DE JEU (fenêtre) ============ -->
+  <div class="modal" id="game-modal" hidden role="dialog" aria-modal="true" aria-labelledby="game-modal-title">
+    <div class="modal-backdrop" data-close-modal></div>
+    <div class="modal-panel">
+      <button type="button" class="modal-close" data-close-modal aria-label="Fermer">×</button>
+      <div class="game-detail" id="game-detail">
+        <div class="game-detail-head">
+          <div class="game-thumb game-thumb-lg" id="gd-thumb" aria-hidden="true"></div>
+          <div class="game-detail-title">
+            <div class="tag-row">
+              <span class="tag" id="gd-category"></span>
+              <span class="rank-pill" id="gd-rank"></span>
+              <span class="tag tag-custom" id="gd-custom-tag" hidden>Ajouté par toi</span>
+            </div>
+            <h2 id="game-modal-title"></h2>
+            <p class="muted" id="gd-genre"></p>
+          </div>
+        </div>
+
+        <p id="gd-description"></p>
+
+        <div class="detail-grid" id="gd-pros-cons">
+          <div>
+            <h3>Points forts</h3>
+            <ul class="check-list" id="gd-pros"></ul>
+          </div>
+          <div>
+            <h3>À savoir</h3>
+            <ul class="warn-list" id="gd-cons"></ul>
+          </div>
+        </div>
+
+        <div class="detail-actions">
+          <a class="btn btn-primary" id="gd-roblox-link" href="#" target="_blank" rel="noopener noreferrer">Ouvrir sur Roblox ↗</a>
+          <a class="btn btn-ghost" id="gd-search-link" href="#" target="_blank" rel="noopener noreferrer">Rechercher sur Roblox ↗</a>
+          <button type="button" class="btn btn-secondary" id="gd-fav">♡ Ajouter aux favoris</button>
+        </div>
+        <p class="muted small" id="gd-link-note"></p>
+
+        <section class="codes-box" aria-labelledby="gd-codes-title">
+          <h3 id="gd-codes-title">Codes et récompenses</h3>
+          <p class="codes-warning" role="note">Les codes proviennent de sources externes. Ils peuvent être expirés, invalides ou non vérifiés. Leur fonctionnement n'est pas garanti.</p>
+
+          <div class="codes-source" id="gd-codes-source">
+            <a class="btn btn-accent" id="gd-codes-link" href="#" target="_blank" rel="noopener noreferrer" hidden>Consulter les codes ↗</a>
+            <p class="muted small" id="gd-codes-source-note"></p>
+          </div>
+
+          <h4 class="codes-sub">Mes codes notés</h4>
+          <p class="muted small">Tu peux noter ici des codes que tu as trouvés. Ils restent dans ton navigateur et ne sont pas vérifiés par ce site.</p>
+          <ul class="codes-list" id="gd-codes"></ul>
+          <form class="code-form" id="gd-code-form">
+            <label for="gd-code-input" class="sr-only">Ajouter un code</label>
+            <input type="text" id="gd-code-input" maxlength="40" placeholder="Ajouter un code que tu connais…" autocomplete="off">
+            <button type="submit" class="btn btn-secondary btn-small">Ajouter</button>
+          </form>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ FENÊTRE DE PARTAGE ============ -->
+  <div class="modal" id="share-modal" hidden role="dialog" aria-modal="true" aria-labelledby="share-modal-title">
+    <div class="modal-backdrop" data-close-modal></div>
+    <div class="modal-panel modal-panel-small">
+      <button type="button" class="modal-close" data-close-modal aria-label="Fermer">×</button>
+      <h2 id="share-modal-title">Partager ta Tier List</h2>
+      <p class="muted">Ce lien contient toute ta Tier List. Quiconque le reçoit peut la consulter et la dupliquer.</p>
+      <label for="share-link" class="sr-only">Lien de partage</label>
+      <textarea id="share-link" rows="4" readonly></textarea>
+      <p class="muted small" id="share-info"></p>
+      <div class="detail-actions">
+        <button type="button" class="btn btn-primary" id="share-copy">Copier le lien</button>
+        <button type="button" class="btn btn-secondary" id="share-native" hidden>Partager…</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ FENÊTRE DE MODIFICATION D'UN RANG ============ -->
+  <div class="modal" id="tier-modal" hidden role="dialog" aria-modal="true" aria-labelledby="tier-modal-title">
+    <div class="modal-backdrop" data-close-modal></div>
+    <div class="modal-panel modal-panel-small">
+      <button type="button" class="modal-close" data-close-modal aria-label="Fermer">×</button>
+      <h2 id="tier-modal-title">Modifier le rang</h2>
+      <div class="field">
+        <label for="tier-edit-name">Nom du rang</label>
+        <input type="text" id="tier-edit-name" maxlength="20">
+      </div>
+      <div class="field">
+        <label for="tier-edit-color">Couleur</label>
+        <input type="color" id="tier-edit-color" value="#8b5cf6">
+      </div>
+      <div class="detail-actions">
+        <button type="button" class="btn btn-primary" id="tier-edit-save">Enregistrer</button>
+        <button type="button" class="btn btn-secondary" id="tier-edit-up">↑ Monter</button>
+        <button type="button" class="btn btn-secondary" id="tier-edit-down">↓ Descendre</button>
+        <button type="button" class="btn btn-danger" id="tier-edit-delete">Supprimer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ NOTIFICATION ============ -->
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <!-- ============ PIED DE PAGE ============ -->
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p><strong>Roblox Tier List</strong> est un projet de fans, indépendant et gratuit.</p>
+      <p class="small muted">Ce site n'est ni affilié, ni approuvé, ni sponsorisé par Roblox Corporation. « Roblox » est une marque de Roblox Corporation. Le catalogue n'est pas exhaustif. Les classements sont subjectifs et ne reposent sur aucune statistique en temps réel. Les codes proviennent de sources externes : ils peuvent être expirés, invalides ou non vérifiés, et leur fonctionnement n'est pas garanti.</p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
