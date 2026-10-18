@@ -91,9 +91,111 @@
     return words[0].slice(0, 2).toUpperCase();
   }
 
+  var ROBLOX_THUMBNAILS = {};
+  var ROBLOX_ICONS = {};
+  var ROBLOX_THUMBNAILS_STARTED = false;
+
   function thumbStyle(g) {
     var c = catById[g.cat] ? catById[g.cat].colors : ["#8b5cf6", "#38bdf8"];
     return "background:linear-gradient(135deg," + c[0] + "," + c[1] + ")";
+  }
+
+  function thumbContent(g) {
+    var placeId = g && g.placeId ? String(g.placeId) : "";
+    var url = placeId ? (ROBLOX_THUMBNAILS[placeId] || ROBLOX_ICONS[placeId]) : "";
+    if (!url) return esc(initials(g && g.name ? g.name : ""));
+    return '<img src="' + esc(url) + '" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer">';
+  }
+
+  function refreshGameThumbnails() {
+    document.querySelectorAll("[data-game-thumb]").forEach(function (element) {
+      var game = byId[element.getAttribute("data-game-thumb")];
+      if (game) element.innerHTML = thumbContent(game);
+    });
+  }
+
+  function loadRobloxThumbnails() {
+    if (ROBLOX_THUMBNAILS_STARTED) return;
+    ROBLOX_THUMBNAILS_STARTED = true;
+
+    var placeIds = Array.from(new Set(GAMES.filter(function (game) {
+      return Number(game.placeId) > 0;
+    }).map(function (game) { return Number(game.placeId); })));
+
+    function chunks(values, size) {
+      var result = [];
+      for (var i = 0; i < values.length; i += size) result.push(values.slice(i, i + size));
+      return result;
+    }
+
+    function getJson(url) {
+      return fetch(url, { mode: "cors", credentials: "omit" }).then(function (response) {
+        if (!response.ok) throw new Error("Roblox API HTTP " + response.status);
+        return response.json();
+      });
+    }
+
+    var placeToUniverse = {};
+    var detailRequests = chunks(placeIds, 25).map(function (batch) {
+      var url = "https://games.roblox.com/v1/games/multiget-place-details?placeIds=" + batch.join(",");
+      return getJson(url).then(function (data) {
+        var entries = Array.isArray(data) ? data : (Array.isArray(data.data) ? data.data : []);
+        entries.forEach(function (entry) {
+          var placeId = Number(entry.placeId);
+          var universeId = Number(entry.universeId || entry.universeRootPlaceId);
+          if (placeId > 0 && universeId > 0) placeToUniverse[String(placeId)] = universeId;
+        });
+      }).catch(function (error) {
+        console.warn("Impossible de retrouver les univers Roblox pour un lot :", error);
+      });
+    });
+
+    Promise.all(detailRequests).then(function () {
+      var universeIds = Array.from(new Set(Object.keys(placeToUniverse).map(function (id) {
+        return placeToUniverse[id];
+      })));
+      return Promise.all(chunks(universeIds, 50).map(function (batch) {
+        if (!batch.length) return Promise.resolve();
+        var url = "https://thumbnails.roblox.com/v1/games/multiget/thumbnails?universeIds=" +
+          batch.join(",") + "&countPerUniverse=1&size=768x432&format=Png&isCircular=false";
+        return getJson(url).then(function (data) {
+          (data.data || []).forEach(function (entry) {
+            var thumbs = entry.thumbnails || [];
+            var thumb = thumbs.find(function (item) { return item && item.url; });
+            if (!thumb) return;
+            Object.keys(placeToUniverse).forEach(function (placeId) {
+              if (placeToUniverse[placeId] === Number(entry.universeId)) {
+                ROBLOX_THUMBNAILS[placeId] = thumb.url;
+              }
+            });
+          });
+        }).catch(function (error) {
+          console.warn("Miniatures Roblox indisponibles pour un lot :", error);
+        });
+      }));
+    }).then(function () {
+      var missingPlaceIds = placeIds.filter(function (id) {
+        return !ROBLOX_THUMBNAILS[String(id)];
+      });
+      return Promise.all(chunks(missingPlaceIds, 50).map(function (batch) {
+        if (!batch.length) return Promise.resolve();
+        var url = "https://thumbnails.roblox.com/v1/places/gameicons?placeIds=" +
+          batch.join(",") + "&size=512x512&format=Png&isCircular=false";
+        return getJson(url).then(function (data) {
+          (data.data || []).forEach(function (entry) {
+            if (entry && entry.imageUrl && Number(entry.targetId) > 0) {
+              ROBLOX_ICONS[String(entry.targetId)] = entry.imageUrl;
+            }
+          });
+        }).catch(function (error) {
+          console.warn("Icônes Roblox de secours indisponibles pour un lot :", error);
+        });
+      }));
+    }).then(function () {
+      refreshGameThumbnails();
+    }).catch(function (error) {
+      console.warn("Chargement des miniatures Roblox interrompu :", error);
+    });
   }
 
   function searchUrl(g) {
@@ -633,7 +735,7 @@
     var fav = isFav(g.id);
     return '<article class="game-card">' +
       '<span class="rank-pill" data-rank="' + g.rank + '" title="' + (g.rank === "none" ? "Non classé" : "Rang " + g.rank) + '">' + rankLabel(g) + "</span>" +
-      '<div class="game-thumb" style="' + thumbStyle(g) + '" aria-hidden="true">' + esc(initials(g.name)) + "</div>" +
+      '<div class="game-thumb" data-game-thumb="' + esc(g.id) + '" style="' + thumbStyle(g) + '" aria-hidden="true">' + thumbContent(g) + "</div>" +
       '<div class="game-card-body">' +
         '<div class="tag-row"><span class="tag">' + esc(catLabel(g.cat)) + "</span>" + (g.custom ? '<span class="tag tag-custom">Ajouté par toi</span>' : "") + "</div>" +
         "<h3>" + esc(g.name) + "</h3>" +
@@ -649,7 +751,7 @@
   function miniGame(g, draggable, isSelected) {
     return '<div class="tier-game' + (isSelected ? " selected" : "") + '" role="button" tabindex="0" data-id="' + esc(g.id) + '" title="' + esc(g.name) + '"' +
       (draggable ? ' draggable="true"' : "") + (draggable ? ' aria-pressed="' + !!isSelected + '"' : "") + ">" +
-      '<span class="mini-thumb" style="' + thumbStyle(g) + '">' + esc(initials(g.name)) + "</span>" +
+      '<span class="mini-thumb" data-game-thumb="' + esc(g.id) + '" style="' + thumbStyle(g) + '">' + thumbContent(g) + "</span>" +
       '<span class="mini-name">' + esc(g.name) + "</span></div>";
   }
 
@@ -1559,5 +1661,8 @@
     route();
   }
 
-  loadImportedGames().then(function () { init(); });
+  loadImportedGames().then(function () {
+    init();
+    loadRobloxThumbnails();
+  });
 })();
