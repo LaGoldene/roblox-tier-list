@@ -1322,6 +1322,66 @@
      10. DÉMARRAGE
      =================================================== */
 
+  /* ---- Import automatique du catalogue games.json ---- */
+  function loadImportedGames() {
+    return fetch("games.json?update=" + Date.now(), { cache: "no-store" })
+      .then(function (response) {
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        return response.json();
+      })
+      .then(function (data) {
+        var imported = Array.isArray(data) ? data : data.games;
+        if (!Array.isArray(imported)) throw new Error("Format games.json invalide");
+
+        var existingPlaces = {};
+        var existingNames = {};
+        GAMES.forEach(function (g) {
+          if (g.placeId) existingPlaces[String(g.placeId)] = true;
+          if (g.name) existingNames[slug(g.name)] = true;
+        });
+
+        var added = 0;
+        imported.forEach(function (item) {
+          if (!item || typeof item.name !== "string" || !item.name.trim()) return;
+
+          var name = item.name.trim();
+          var nameKey = slug(name);
+          var placeId = Number(item.placeId);
+          var placeKey = placeId > 0 ? String(placeId) : "";
+
+          if (!nameKey || existingNames[nameKey]) return;
+          if (placeKey && existingPlaces[placeKey]) return;
+
+          var id = "imported-" + (placeKey || nameKey);
+          if (byId[id]) return;
+
+          var cat = catById[item.cat] ? item.cat : "autres";
+          addToCatalog({
+            id: id,
+            name: name,
+            cat: cat,
+            genre: item.genre || catLabel(cat),
+            rank: "none",
+            placeId: placeKey ? placeId : null,
+            desc: item.desc || AUTO_DESC,
+            pros: Array.isArray(item.pros) ? item.pros : [],
+            cons: Array.isArray(item.cons) ? item.cons : [],
+            codes: Array.isArray(item.codes) ? item.codes : [],
+            source: item.source || "Roblox Search"
+          });
+
+          existingNames[nameKey] = true;
+          if (placeKey) existingPlaces[placeKey] = true;
+          added++;
+        });
+
+        console.log("Catalogue automatique : " + added + " jeu(x) ajouté(s).");
+      })
+      .catch(function (error) {
+        console.warn("Import du catalogue indisponible ; catalogue local conservé :", error);
+      });
+  }
+
   function init() {
     /* Listes déroulantes de catégories */
     var allOption = '<option value="all">Toutes les catégories</option>';
@@ -1499,5 +1559,5 @@
     route();
   }
 
-  init();
+  loadImportedGames().then(function () { init(); });
 })();
