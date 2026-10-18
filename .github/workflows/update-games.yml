@@ -8,6 +8,7 @@ on:
       - main
     paths:
       - "scripts/import_games.py"
+      - "app.js"
       - ".github/workflows/update-games.yml"
   schedule:
     - cron: "17 3 * * 1"
@@ -16,13 +17,13 @@ permissions:
   contents: write
 
 concurrency:
-  group: update-roblox-games-v2
-  cancel-in-progress: true
+  group: update-roblox-games-v3
+  cancel-in-progress: false
 
 jobs:
   update-catalog:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
 
     steps:
       - name: Recuperer le depot
@@ -37,14 +38,37 @@ jobs:
         run: python scripts/import_games.py
 
      
-      - name: Enregistrer le catalogue mis a jour
+      - name: Enregistrer le catalogue et les miniatures
         run: |
-          git add games.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add games.json thumbnails.json
           if git diff --cached --quiet; then
-            echo "Aucun changement dans games.json."
-          else
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit -m "Mise a jour automatique du catalogue"
-            git push
+            echo "Aucun changement dans le catalogue ou les miniatures."
+            exit 0
           fi
+          git commit -m "Mise a jour automatique du catalogue Roblox"
+
+          # En cas de changement concurrent de main, synchroniser puis réessayer.
+          # Si le JSON entre en conflit, repartir du dernier main et régénérer.
+          for attempt in 1 2 3; do
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            echo "Push refusé (tentative ${attempt}/3) ; synchronisation avec main..."
+            git fetch origin main
+            if git rebase origin/main; then
+              continue
+            fi
+            git rebase --abort || true
+            git reset --hard origin/main
+            python scripts/import_games.py
+            git add games.json thumbnails.json
+            if git diff --cached --quiet; then
+              echo "Le catalogue est déjà à jour après synchronisation."
+              exit 0
+            fi
+            git commit -m "Mise a jour automatique du catalogue Roblox (reprise)"
+          done
+          echo "Impossible de publier le catalogue après 3 tentatives."
+          exit 1
