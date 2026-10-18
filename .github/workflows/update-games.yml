@@ -16,7 +16,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: update-roblox-games
+  group: update-roblox-games-v2
   cancel-in-progress: true
 
 jobs:
