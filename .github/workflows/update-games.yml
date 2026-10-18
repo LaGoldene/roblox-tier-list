@@ -3,6 +3,10 @@ name: Mise a jour du catalogue Roblox
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - "scripts/import_games.py"
+      - ".github/workflows/update-games.yml"
   schedule:
     - cron: "17 3 * * 1"
 
