@@ -13,21 +13,66 @@ OUTPUT = ROOT / "games.json"
 
 # Requêtes pour chercher des jeux dans plusieurs genres.
 SEARCHES = {
-    "anime": ["anime", "blox fruits", "anime tower defense"],
-    "horreur": ["horror", "doors", "survival horror"],
-    "simulateur": ["simulator", "pet simulator", "farming"],
-    "tycoon": ["tycoon", "restaurant tycoon"],
-    "rp": ["roleplay", "brookhaven", "adopt me"],
-    "survie": ["survival", "99 nights in the forest"],
-    "fps": ["fps", "shooter"],
-    "combat": ["fighting", "battlegrounds"],
-    "obby": ["obby", "parkour"],
-    "course": ["racing", "car racing"],
-    "sport": ["football", "basketball"],
-    "aventure": ["adventure", "open world"],
-    "strategie": ["tower defense", "strategy"],
-    "amis": ["party games", "multiplayer"],
-    "autres": ["popular games", "trending games"],
+    "anime": [
+        "anime", "blox fruits", "anime tower defense", "anime battlegrounds",
+        "anime simulator", "anime fighting", "anime adventures",
+    ],
+    "horreur": [
+        "horror", "doors", "survival horror", "scary games",
+        "the mimic", "survive the killer", "horror story",
+    ],
+    "simulateur": [
+        "simulator", "pet simulator", "farming", "clicker simulator",
+        "fishing simulator", "vehicle simulator", "mining simulator",
+    ],
+    "tycoon": [
+        "tycoon", "restaurant tycoon", "retail tycoon", "theme park tycoon",
+        "pizza place", "mall tycoon", "factory tycoon",
+    ],
+    "rp": [
+        "roleplay", "brookhaven", "adopt me", "bloxburg",
+        "life simulation", "school roleplay", "city roleplay",
+    ],
+    "survie": [
+        "survival", "99 nights in the forest", "natural disaster survival",
+        "zombie survival", "camping survival", "island survival",
+    ],
+    "fps": [
+        "fps", "shooter", "arsenal", "gunfight arena",
+        "paintball", "military shooter",
+    ],
+    "combat": [
+        "fighting", "battlegrounds", "the strongest battlegrounds",
+        "boxing", "sword fighting", "martial arts",
+    ],
+    "obby": [
+        "obby", "parkour", "tower of hell", "mega fun obby",
+        "escape obby", "obby challenge",
+    ],
+    "course": [
+        "racing", "car racing", "driving simulator",
+        "motorcycle racing", "kart racing",
+    ],
+    "sport": [
+        "football", "basketball", "volleyball", "soccer",
+        "sports game", "tennis",
+    ],
+    "aventure": [
+        "adventure", "open world", "dungeon adventure",
+        "quest adventure", "exploration game", "story adventure",
+    ],
+    "strategie": [
+        "tower defense", "strategy", "war tycoon",
+        "base defense", "chess", "strategy battle",
+    ],
+    "amis": [
+        "party games", "multiplayer", "minigames",
+        "hide and seek", "social hangout", "playing with friends",
+    ],
+    "autres": [
+        "popular games", "trending games", "arcade games",
+        "music games", "fashion games", "building games",
+    ],
 }
 
 SESSION_ID = str(uuid.uuid4())
