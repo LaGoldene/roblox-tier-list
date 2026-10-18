@@ -4,6 +4,8 @@ name: Mise a jour du catalogue Roblox
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     paths:
       - "scripts/import_games.py"
       - ".github/workflows/update-games.yml"
@@ -15,11 +17,12 @@ permissions:
 
 concurrency:
   group: update-roblox-games
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   update-catalog:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Recuperer le depot
