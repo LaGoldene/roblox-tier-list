@@ -2,6 +2,7 @@
 import json
 import os
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
@@ -32,7 +33,7 @@ SEARCHES = {
 SESSION_ID = str(uuid.uuid4())
 
 
-def fetch_search(term):
+def fetch_search(term, attempts=3):
     params = urllib.parse.urlencode({
         "searchQuery": term,
         "sessionId": SESSION_ID,
@@ -41,11 +42,45 @@ def fetch_search(term):
     url = "https://apis.roblox.com/search-api/omni-search?" + params
     request = urllib.request.Request(
         url,
-        headers={"User-Agent": "Mozilla/5.0"}
+        headers={
+            "User-Agent": "Mozilla/5.0 (compatible; RobloxTierListCatalog/1.0)",
+            "Accept": "application/json",
+        }
     )
 
-    with urllib.request.urlopen(request, timeout=25) as response:
-        return json.loads(response.read().decode("utf-8"))
+    for attempt in range(attempts):
+        try:
+            with urllib.request.urlopen(request, timeout=25) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            retryable = exc.code == 429 or exc.code in (500, 502, 503, 504)
+            if not retryable or attempt == attempts - 1:
+                raise
+
+            retry_after = exc.headers.get("Retry-After") if exc.headers else None
+            try:
+                delay = float(retry_after) if retry_after else 4 * (2 ** attempt)
+            except (TypeError, ValueError):
+                delay = 4 * (2 ** attempt)
+            delay = max(1, min(delay, 30))
+            print(
+                f"  HTTP {exc.code} pour '{term}' ; "
+                f"nouvel essai dans {delay:.0f} seconde(s) "
+                f"({attempt + 2}/{attempts})."
+            )
+            time.sleep(delay)
+        except (urllib.error.URLError, TimeoutError) as exc:
+            if attempt == attempts - 1:
+                raise
+            delay = 4 * (2 ** attempt)
+            print(
+                f"  Erreur réseau pour '{term}' : {exc} ; "
+                f"nouvel essai dans {delay} seconde(s) "
+                f"({attempt + 2}/{attempts})."
+            )
+            time.sleep(delay)
+
+    raise RuntimeError(f"Échec de la recherche Roblox : {term}")
 
 
 def find_games(data, category):
@@ -137,8 +172,8 @@ def main():
                 errors += 1
                 print(f"Recherche échouée pour '{term}': {exc}")
 
-            # Réduit la fréquence des requêtes.
-            time.sleep(2)
+            # Réduit la fréquence des requêtes pour limiter les HTTP 429.
+            time.sleep(3)
 
     # Ne jamais remplacer le catalogue si toutes les recherches échouent.
     if imported_count == 0 and errors == sum(
