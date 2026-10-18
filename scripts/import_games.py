@@ -78,7 +78,7 @@ SEARCHES = {
 SESSION_ID = str(uuid.uuid4())
 
 
-def fetch_search(term, attempts=3):
+def fetch_search(term, attempts=2):
     params = urllib.parse.urlencode({
         "searchQuery": term,
         "sessionId": SESSION_ID,
@@ -95,7 +95,7 @@ def fetch_search(term, attempts=3):
 
     for attempt in range(attempts):
         try:
-            with urllib.request.urlopen(request, timeout=25) as response:
+            with urllib.request.urlopen(request, timeout=8) as response:
                 return json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
             retryable = exc.code == 429 or exc.code in (500, 502, 503, 504)
@@ -104,10 +104,10 @@ def fetch_search(term, attempts=3):
 
             retry_after = exc.headers.get("Retry-After") if exc.headers else None
             try:
-                delay = float(retry_after) if retry_after else 4 * (2 ** attempt)
+                delay = float(retry_after) if retry_after else 2 * (2 ** attempt)
             except (TypeError, ValueError):
-                delay = 4 * (2 ** attempt)
-            delay = max(1, min(delay, 30))
+                delay = 2 * (2 ** attempt)
+            delay = max(1, min(delay, 8))
             print(
                 f"  HTTP {exc.code} pour '{term}' ; "
                 f"nouvel essai dans {delay:.0f} seconde(s) "
@@ -218,7 +218,7 @@ def main():
                 print(f"Recherche échouée pour '{term}': {exc}")
 
             # Réduit la fréquence des requêtes pour limiter les HTTP 429.
-            time.sleep(3)
+            time.sleep(1.5)
 
     # Ne jamais remplacer le catalogue si toutes les recherches échouent.
     if imported_count == 0 and errors == sum(
