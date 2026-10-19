@@ -665,9 +665,7 @@
     l.tiers.forEach(function (tier) {
       tier.games.forEach(function (id) {
         var game = byId[id];
-        if (game && game.custom) {
-          custom[id] = { id: id, name: game.name, cat: game.cat, placeId: game.placeId, desc: game.desc };
-        }
+        if (game && game.custom) custom[id] = { id: id, name: game.name, cat: game.cat, placeId: game.placeId, desc: game.desc };
       });
     });
     var data = {
@@ -688,10 +686,7 @@
       (Array.isArray(d.c) ? d.c : []).slice(0, MAX_CUSTOM).forEach(function (item) {
         if (!item || typeof item.name !== "string" || !item.name.trim()) return;
         var existing = GAMES.filter(function (g) { return norm(g.name) === norm(item.name); })[0];
-        if (existing) {
-          if (item.id) idMap[item.id] = existing.id;
-          return;
-        }
+        if (existing) { if (item.id) idMap[item.id] = existing.id; return; }
         if (customCount() >= MAX_CUSTOM) return;
         var newId = typeof item.id === "string" && /^u-[a-z0-9]{3,12}$/.test(item.id) && !byId[item.id] ? item.id : "u-" + uid();
         var game = makeCustom({ id: newId, name: item.name, cat: item.cat, placeId: item.placeId, desc: item.desc });
@@ -701,13 +696,12 @@
         addedCustom = true;
       });
       if (addedCustom) persistCustom();
-      var list = cleanList({
+      return cleanList({
         title: d.t,
         tiers: d.r.map(function (r) {
           return { name: r[0], color: "#" + r[1], games: (Array.isArray(r[2]) ? r[2] : []).map(function (id) { return idMap[id] || id; }) };
         })
       });
-      return list;
     } catch (e) {
       return null;
     }
@@ -955,11 +949,9 @@
     if (totalLabel) totalLabel.textContent = totalVotes + " vote" + (totalVotes === 1 ? "" : "s") + " enregistré" + (totalVotes === 1 ? "" : "s");
     var updatedLabel = $("community-updated");
     if (updatedLabel) {
-      if (communityUpdatedAt && !isNaN(Date.parse(communityUpdatedAt))) {
-        updatedLabel.textContent = "Dernière mise à jour : " + new Date(communityUpdatedAt).toLocaleString("fr-FR");
-      } else {
-        updatedLabel.textContent = "Les votes sont mis à jour après validation par GitHub Actions.";
-      }
+      updatedLabel.textContent = communityUpdatedAt && !isNaN(Date.parse(communityUpdatedAt))
+        ? "Dernière mise à jour : " + new Date(communityUpdatedAt).toLocaleString("fr-FR")
+        : "Les votes sont mis à jour après validation par GitHub Actions.";
     }
     var cat = $("ranking-category") ? $("ranking-category").value || "all" : "all";
     if (!totalVotes) {
