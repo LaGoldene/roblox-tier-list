@@ -583,6 +583,8 @@
      =================================================== */
 
   var favs = (store.get("rtl_favs", []) || []).filter(function (id) { return byId[id]; });
+  /* Notes personnelles : stockées localement, jamais envoyées à un serveur. */
+  var ratings = store.get("rtl_ratings", {}) || {};
   var lists = [];
   var userCodes = store.get("rtl_codes", {}) || {};
   var tl = null;
@@ -679,6 +681,15 @@
      5. AFFICHAGE : briques communes
      =================================================== */
 
+  function ratingStars(g) {
+    var rating = Number(ratings[g.id]) || 0;
+    var buttons = "";
+    for (var star = 1; star <= 5; star++) {
+      buttons += '<button type="button" class="rating-star' + (star <= rating ? ' is-filled' : '') + '" data-action="rate" data-id="' + esc(g.id) + '" data-rating="' + star + '" aria-label="Noter ' + esc(g.name) + ' ' + star + ' sur 5" aria-pressed="' + (star === rating) + '" title="' + star + '/5">' + (star <= rating ? "★" : "☆") + '</button>';
+    }
+    return '<div class="personal-rating" aria-label="Ma note personnelle, enregistrée sur cet appareil"><span class="rating-label">Ma note</span><span class="rating-stars">' + buttons + '</span>' + (rating ? '<span class="rating-value">' + rating + '/5</span>' : '') + '</div>';
+  }
+
   function gameCard(g) {
     var fav = isFav(g.id);
     return '<article class="game-card">' +
@@ -688,6 +699,7 @@
         '<div class="tag-row"><span class="tag">' + esc(catLabel(g.cat)) + "</span>" + (g.custom ? '<span class="tag tag-custom">Ajouté par toi</span>' : "") + "</div>" +
         "<h3>" + esc(g.name) + "</h3>" +
         '<p class="game-card-genre">' + esc(g.genre) + "</p>" +
+        ratingStars(g) +
         '<p class="game-card-desc">' + esc(g.desc) + "</p>" +
         '<div class="game-card-actions">' +
           '<button type="button" class="btn btn-secondary btn-small" data-action="open" data-id="' + esc(g.id) + '">Voir la fiche</button>' +
@@ -1260,6 +1272,14 @@
     var id = node.getAttribute("data-id");
     if (a === "open") openGame(id);
     else if (a === "fav") toggleFav(id);
+    else if (a === "rate") {
+      var rating = Number(node.getAttribute("data-rating"));
+      if (rating >= 1 && rating <= 5) {
+        if (Number(ratings[id]) === rating) delete ratings[id]; else ratings[id] = rating;
+        store.set("rtl_ratings", ratings);
+        if (currentKey === "catalog") renderCatalog(); else renderHome();
+      }
+    }
     else if (a === "filter-cat") {
       filters.cat = node.getAttribute("data-cat");
       resetLimit();
