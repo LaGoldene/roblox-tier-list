@@ -1657,3 +1657,40 @@ input[type="text"]:focus, input[type="search"]:focus, select:focus, textarea:foc
 @media (max-width: 560px) {
   .back-to-top { width: 42px; height: 42px; right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); }
 }
+
+
+/* Notes personnelles : vote tactile compact, sans collecte de données */
+.personal-rating {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 1px;
+  color: var(--text-dim);
+  font-size: .76rem;
+}
+.rating-label { font-weight: 800; }
+.rating-stars { display: inline-flex; align-items: center; gap: 1px; }
+.rating-star {
+  min-width: 25px;
+  min-height: 27px;
+  padding: 0 2px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-dim);
+  font: 800 1.12rem/1 var(--font-ui);
+  cursor: pointer;
+  transition: color .15s ease, transform .15s ease, background .15s ease;
+}
+.rating-star:hover, .rating-star:focus-visible {
+  color: var(--orange);
+  background: color-mix(in srgb, var(--orange) 13%, transparent);
+}
+.rating-star:hover { transform: scale(1.12); }
+.rating-star.is-filled { color: #e6a72f; }
+.rating-value { font-weight: 900; color: var(--text); }
+@media (max-width: 560px) {
+  .personal-rating { gap: 3px; font-size: .72rem; }
+  .rating-star { min-width: 22px; min-height: 26px; font-size: 1rem; }
+}
