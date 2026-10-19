@@ -1121,7 +1121,7 @@
   }
 
   function exportSavedLists() {
-    var payload = { format: "roblox-tier-list", version: 1, exportedAt: new Date().toISOString(), lists: lists };
+    var payload = { format: "roblox-tier-list", version: 1, exportedAt: new Date().toISOString(), customGames: GAMES.filter(function (g) { return g.custom; }).map(function (g) { return { id: g.id, name: g.name, cat: g.cat, placeId: g.placeId, desc: g.desc }; }), lists: lists };
     downloadBlob(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" }), "mes-tier-lists.json");
     toast("Sauvegarde JSON exportée.");
   }
@@ -1133,19 +1133,42 @@
       var data = JSON.parse(text);
       var incoming = Array.isArray(data) ? data : data && data.lists;
       if (!Array.isArray(incoming)) throw new Error("format");
+      var customIdMap = {};
+      var customAdded = 0;
+      (Array.isArray(data.customGames) ? data.customGames : []).slice(0, MAX_CUSTOM).forEach(function (item) {
+        if (!item || typeof item.name !== "string" || !item.name.trim()) return;
+        var existing = GAMES.filter(function (g) { return norm(g.name) === norm(item.name); })[0];
+        if (existing) { if (item.id) customIdMap[item.id] = existing.id; return; }
+        var newId = typeof item.id === "string" && /^u-[a-z0-9]{3,12}$/.test(item.id) && !byId[item.id] ? item.id : "u-" + uid();
+        var custom = makeCustom({ id: newId, name: item.name, cat: item.cat, placeId: item.placeId, desc: item.desc });
+        if (!custom || customCount() >= MAX_CUSTOM) return;
+        addToCatalog(custom);
+        if (item.id) customIdMap[item.id] = custom.id;
+        customAdded++;
+      });
+      if (customAdded) persistCustom();
       var added = 0;
       incoming.slice(0, 100).forEach(function (item) {
-        var clean = cleanList(item);
+        if (!item || !Array.isArray(item.tiers)) return;
+        var copy = clone(item);
+        copy.tiers.forEach(function (tier) {
+          if (Array.isArray(tier.games)) tier.games = tier.games.map(function (id) { return customIdMap[id] || id; });
+        });
+        var clean = cleanList(copy);
         if (!clean) return;
         clean.id = uid();
         clean.updated = Date.now();
         clean.title = (clean.title || "Tier List importée").slice(0, 60);
         lists.unshift(clean); added++;
       });
-      if (!added) { toast("Aucune Tier List valide trouvée."); return; }
-      lists = lists.slice(0, 100);
-      store.set("rtl_lists", lists); renderSaved(); updateStats();
-      toast(added + " Tier List" + (added > 1 ? "s importées" : " importée") + " !");
+      if (added) {
+        lists = lists.slice(0, 100);
+        store.set("rtl_lists", lists); renderSaved(); updateStats();
+      }
+      if (!added && !customAdded) { toast("Aucune Tier List valide trouvée."); return; }
+      var message = added + " Tier List" + (added > 1 ? "s importées" : " importée");
+      if (customAdded) message += " · " + customAdded + " jeu" + (customAdded > 1 ? "x personnalisés importés" : " personnalisé importé");
+      toast(message + " !");
     }).catch(function () { toast("Fichier invalide. Choisis un export JSON de Roblox Tier List."); });
   }
 
@@ -1700,9 +1723,9 @@
     /* Créateur */
     $("tl-title").addEventListener("input", function () { tl.title = this.value.slice(0, 60); saveDraft(); });
     $("tl-save").addEventListener("click", saveCurrent);
-    $("tl-export-png").addEventListener("click", exportTierListPng);
-    $("tl-export-json").addEventListener("click", exportSavedLists);
-    $("tl-import-json").addEventListener("change", function () { importSavedLists(this.files && this.files[0]); this.value = ""; });
+    if ($("tl-export-png")) $("tl-export-png").addEventListener("click", exportTierListPng);
+    if ($("tl-export-json")) $("tl-export-json").addEventListener("click", exportSavedLists);
+    if ($("tl-import-json")) $("tl-import-json").addEventListener("change", function () { importSavedLists(this.files && this.files[0]); this.value = ""; });
     $("tl-share").addEventListener("click", function () {
       tl.title = $("tl-title").value.trim().slice(0, 60);
       saveDraft();
