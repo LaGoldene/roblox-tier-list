@@ -1429,7 +1429,7 @@
     list.tiers.forEach(function (t) {
       t.games.forEach(function (id) { if (byId[id] && byId[id].custom) custom++; });
     });
-    if (custom) info += " Attention : " + custom + " jeu" + (custom > 1 ? "x" : "") + " ajouté" + (custom > 1 ? "s" : "") + " par toi n'apparaîtr" + (custom > 1 ? "ont" : "a") + " pas chez les personnes qui reçoivent le lien.";
+    if (custom) info += " " + custom + " jeu" + (custom > 1 ? "x" : "") + " personnalisé" + (custom > 1 ? "s" : "") + " inclus dans le lien ; celui-ci peut être plus long.";
     if (location.protocol === "file:") info += " Ce lien ne marchera pour d'autres personnes qu'une fois le site publié en ligne.";
     $("share-info").textContent = info;
     openModal($("share-modal"));
