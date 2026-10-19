@@ -21,7 +21,22 @@ rank = (rank_match.group(1).strip().upper() if rank_match else "").strip()
 game_key = slug(game)
 outcome = "invalid"
 
-if game_key and login and rank in {"S", "A", "B", "C", "D"}:
+known = set()
+with open("app.js", encoding="utf-8") as f:
+    app = f.read()
+for match in re.finditer(r'\bG\(\s*"[^"]+"\s*,\s*"([^"]+)"', app):
+    known.add(slug(match.group(1)))
+try:
+    with open("games.json", encoding="utf-8") as f:
+        catalog = json.load(f)
+    imported = catalog if isinstance(catalog, list) else catalog.get("games", [])
+    for item in imported:
+        if isinstance(item, dict) and isinstance(item.get("name"), str):
+            known.add(slug(item["name"]))
+except (OSError, ValueError, TypeError):
+    pass
+
+if game_key in known and login and rank in {"S", "A", "B", "C", "D"}:
     path = "community-votes.json"
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
