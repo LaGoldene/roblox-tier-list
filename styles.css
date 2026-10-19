@@ -1720,3 +1720,12 @@ input[type="text"]:focus, input[type="search"]:focus, select:focus, textarea:foc
   object-fit: cover;
   object-position: center;
 }
+
+
+/* ---------- Export / import et historique ---------- */
+.import-json-label { cursor: pointer; }
+@media (max-width: 640px) {
+  #view-tierlist .editor-actions { gap: 8px; }
+  #view-tierlist .editor-actions .btn { flex: 1 1 auto; }
+  #view-tierlist .block-head { align-items: flex-start; flex-direction: column; }
+}
