@@ -1,0 +1,28 @@
+name: Vote communautaire
+description: Propose ton rang pour un jeu Roblox du catalogue
+title: "[Vote communautaire] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Merci de participer au classement ! Il faut être connecté à GitHub. Un seul vote par compte et par jeu est conservé.
+  - type: input
+    id: game
+    attributes:
+      label: Nom du jeu
+      description: Écris le nom du jeu tel qu'il apparaît dans le catalogue.
+      placeholder: "Doors"
+    validations:
+      required: true
+  - type: dropdown
+    id: rank
+    attributes:
+      label: Rang proposé
+      options:
+        - S
+        - A
+        - B
+        - C
+        - D
+    validations:
+      required: true

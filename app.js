@@ -589,6 +589,8 @@
   var favs = (store.get("rtl_favs", []) || []).filter(function (id) { return byId[id]; });
   /* Notes personnelles : stockées localement, jamais envoyées à un serveur. */
   var ratings = store.get("rtl_ratings", {}) || {};
+  var recentGames = (store.get("rtl_recent_games", []) || []).filter(function (id) { return !!byId[id]; }).slice(0, 6);
+  var communityVotes = {};
   var lists = [];
   var userCodes = store.get("rtl_codes", {}) || {};
   var tl = null;
@@ -756,6 +758,15 @@
 
     var top = GAMES.filter(function (g) { return g.rank === "S"; }).slice(0, 6);
     $("home-top").innerHTML = top.map(gameCard).join("");
+    renderRecentGames();
+  }
+
+  function renderRecentGames() {
+    var box = $("home-recent");
+    if (!box) return;
+    var list = recentGames.map(function (id) { return byId[id]; }).filter(Boolean);
+    box.innerHTML = list.map(gameCard).join("");
+    box.closest(".block").hidden = list.length === 0;
   }
 
   /* ---- Catalogue ---- */
@@ -794,6 +805,11 @@
   }
 
   function renderCatalog() {
+    var suggestions = $("game-search-suggestions");
+    if (suggestions && suggestions.getAttribute("data-ready") !== "true") {
+      suggestions.innerHTML = GAMES.map(function (g) { return "<option value=\"" + esc(g.name) + "\"></option>"; }).join("");
+      suggestions.setAttribute("data-ready", "true");
+    }
     var chips = '<button type="button" class="chip' + (filters.cat === "all" ? " active" : "") + '" data-action="filter-cat" data-cat="all">Toutes</button>';
     chips += CATEGORIES.map(function (c) {
       return '<button type="button" class="chip' + (filters.cat === c.id ? " active" : "") + '" data-action="filter-cat" data-cat="' + c.id + '">' + c.icon + " " + esc(c.label) + "</button>";
@@ -884,6 +900,53 @@
   function renderRanking() {
     var cat = $("ranking-category").value || "all";
     $("ranking-board").innerHTML = rankedTiers(cat, false).map(function (t) { return tierRow(t, true); }).join("");
+    renderCommunityRanking();
+  }
+
+  function renderCommunityRanking() {
+    var board = $("community-board");
+    if (!board) return;
+    var tally = {};
+    var totalVotes = 0;
+    Object.keys(communityVotes).forEach(function (gameKey) {
+      var ranks = communityVotes[gameKey] || {};
+      var count = Object.keys(ranks).reduce(function (sum, rank) { return sum + ranks[rank]; }, 0);
+      if (count < 1) return;
+      totalVotes += count;
+      var winner = RANKS.slice().sort(function (x, y) {
+        return (ranks[y] || 0) - (ranks[x] || 0) || RANKS.indexOf(x) - RANKS.indexOf(y);
+      })[0];
+      tally[gameKey] = { rank: winner, votes: count };
+    });
+    var totalLabel = $("community-vote-count");
+    if (totalLabel) totalLabel.textContent = totalVotes + " vote" + (totalVotes === 1 ? "" : "s") + " enregistré" + (totalVotes === 1 ? "" : "s");
+    var cat = $("ranking-category") ? $("ranking-category").value || "all" : "all";
+    if (!totalVotes) {
+      board.innerHTML = '<div class="empty-state"><p class="empty-title">Pas encore de votes communautaires</p><p>Connecte-toi à GitHub pour proposer un rang aux jeux du catalogue.</p><a class="btn btn-primary" href="https://github.com/LaGoldene/roblox-tier-list/issues/new?template=community-vote.yml" target="_blank" rel="noopener noreferrer">Proposer un vote</a></div>';
+      return;
+    }
+    var tiers = RANKS.map(function (rank) {
+      var games = GAMES.filter(function (g) {
+        return (cat === "all" || g.cat === cat) && tally[slug(g.name)] && tally[slug(g.name)].rank === rank;
+      }).map(function (g) { return g.id; });
+      return { id: "community-" + rank, name: rank, color: RANK_COLORS[rank], games: games };
+    }).filter(function (tier) { return tier.games.length; });
+    board.innerHTML = tiers.map(function (tier) { return tierRow(tier, true); }).join("");
+  }
+
+  function loadCommunityVotes() {
+    fetch("https://raw.githubusercontent.com/LaGoldene/roblox-tier-list/main/community-votes.json?update=" + Date.now(), { cache: "no-store" })
+      .then(function (response) { if (!response.ok) throw new Error("HTTP " + response.status); return response.json(); })
+      .then(function (data) {
+        communityVotes = {};
+        (Array.isArray(data.votes) ? data.votes : []).forEach(function (vote) {
+          if (!vote || typeof vote.gameKey !== "string" || RANKS.indexOf(vote.rank) === -1) return;
+          if (!communityVotes[vote.gameKey]) communityVotes[vote.gameKey] = {};
+          communityVotes[vote.gameKey][vote.rank] = (communityVotes[vote.gameKey][vote.rank] || 0) + 1;
+        });
+        renderCommunityRanking();
+      })
+      .catch(function (error) { console.warn("Classement communautaire indisponible :", error); });
   }
 
   function rankingToCreator() {
@@ -986,6 +1049,104 @@
 
   function zoneTier(zone) {
     return zone.dataset.drop === "pool" ? null : zone.dataset.tier;
+  }
+
+
+  function downloadBlob(blob, filename) {
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  function safeFilename(name) {
+    return (name || "tier-list").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 50) || "tier-list";
+  }
+
+  function exportTierListPng() {
+    tl.title = ($("tl-title").value.trim() || "Ma Tier List").slice(0, 60);
+    saveDraft();
+    var canvas = document.createElement("canvas");
+    var ctx = canvas.getContext("2d");
+    if (!ctx) { toast("Export PNG indisponible sur ce navigateur."); return; }
+    var width = 1400, pad = 48, titleH = 116, rowGap = 14, labelW = 150, innerW = width - pad * 2;
+    ctx.font = "700 22px Nunito, Arial, sans-serif";
+    var layouts = tl.tiers.map(function (tier) {
+      var x = pad + labelW + 18, y = 0, lineH = 46, rowH = 24, gap = 10, maxX = width - pad;
+      var items = [];
+      tier.games.forEach(function (id) {
+        var game = byId[id]; if (!game) return;
+        var w = Math.min(280, Math.max(100, ctx.measureText(game.name).width + 34));
+        if (x + w > maxX) { x = pad + labelW + 18; y += lineH + gap; }
+        items.push({ name: game.name, x: x, y: y, w: w });
+        x += w + gap;
+      });
+      return { tier: tier, items: items, height: Math.max(76, y + lineH + 12) };
+    });
+    var height = pad + titleH + layouts.reduce(function (sum, row) { return sum + row.height + rowGap; }, 0) + pad + 54;
+    canvas.width = width; canvas.height = height;
+    ctx.fillStyle = "#f6f7fb"; ctx.fillRect(0, 0, width, height);
+    ctx.fillStyle = "#171827"; ctx.font = "900 42px Nunito, Arial, sans-serif";
+    ctx.fillText(tl.title || "Ma Tier List", pad, pad + 42);
+    ctx.fillStyle = "#687087"; ctx.font = "600 18px Nunito, Arial, sans-serif";
+    ctx.fillText("Roblox Tier List · " + new Date().toLocaleDateString("fr-FR"), pad, pad + 76);
+    var top = pad + titleH;
+    layouts.forEach(function (row) {
+      ctx.fillStyle = "#ffffff"; ctx.strokeStyle = "#e1e4ee"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.roundRect(pad, top, innerW, row.height, 18); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = row.tier.color; ctx.beginPath(); ctx.roundRect(pad + 12, top + 12, labelW - 24, row.height - 24, 12); ctx.fill();
+      ctx.fillStyle = "#ffffff"; ctx.font = "900 25px Nunito, Arial, sans-serif";
+      ctx.textAlign = "center"; ctx.fillText(row.tier.name || "Rang", pad + labelW / 2, top + row.height / 2 + 8); ctx.textAlign = "left";
+      row.items.forEach(function (item) {
+        var x = item.x, y = top + 14 + item.y;
+        ctx.fillStyle = "#f0f1f7"; ctx.beginPath(); ctx.roundRect(x, y, item.w, 42, 10); ctx.fill();
+        ctx.fillStyle = "#25283b"; ctx.font = "700 18px Nunito, Arial, sans-serif";
+        ctx.save(); ctx.beginPath(); ctx.rect(x + 8, y, item.w - 16, 42); ctx.clip();
+        ctx.fillText(item.name, x + 14, y + 27); ctx.restore();
+      });
+      top += row.height + rowGap;
+    });
+    ctx.fillStyle = "#7c8295"; ctx.font = "600 16px Nunito, Arial, sans-serif";
+    ctx.fillText("Créé gratuitement sur lagoldene.github.io/roblox-tier-list", pad, height - pad / 2);
+    canvas.toBlob(function (blob) {
+      if (!blob) { toast("Impossible de créer l’image."); return; }
+      downloadBlob(blob, safeFilename(tl.title) + ".png");
+      toast("Image PNG prête à partager !");
+    }, "image/png");
+  }
+
+  function exportSavedLists() {
+    var payload = { format: "roblox-tier-list", version: 1, exportedAt: new Date().toISOString(), lists: lists };
+    downloadBlob(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" }), "mes-tier-lists.json");
+    toast("Sauvegarde JSON exportée.");
+  }
+
+  function importSavedLists(file) {
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { toast("Fichier trop volumineux (maximum 2 Mo)."); return; }
+    file.text().then(function (text) {
+      var data = JSON.parse(text);
+      var incoming = Array.isArray(data) ? data : data && data.lists;
+      if (!Array.isArray(incoming)) throw new Error("format");
+      var added = 0;
+      incoming.slice(0, 100).forEach(function (item) {
+        var clean = cleanList(item);
+        if (!clean) return;
+        clean.id = uid();
+        clean.updated = Date.now();
+        clean.title = (clean.title || "Tier List importée").slice(0, 60);
+        lists.unshift(clean); added++;
+      });
+      if (!added) { toast("Aucune Tier List valide trouvée."); return; }
+      lists = lists.slice(0, 100);
+      store.set("rtl_lists", lists); renderSaved(); updateStats();
+      toast(added + " Tier List" + (added > 1 ? "s importées" : " importée") + " !");
+    }).catch(function () { toast("Fichier invalide. Choisis un export JSON de Roblox Tier List."); });
   }
 
   function saveCurrent() {
@@ -1137,6 +1298,9 @@
     var g = byId[id];
     if (!g) return;
     currentGameId = id;
+    recentGames = [id].concat(recentGames.filter(function (x) { return x !== id; })).slice(0, 6);
+    store.set("rtl_recent_games", recentGames);
+    if (currentKey === "home") renderRecentGames();
     var thumb = $("gd-thumb");
     thumb.setAttribute("style", thumbStyle(g));
     thumb.textContent = initials(g.name);
@@ -1536,6 +1700,9 @@
     /* Créateur */
     $("tl-title").addEventListener("input", function () { tl.title = this.value.slice(0, 60); saveDraft(); });
     $("tl-save").addEventListener("click", saveCurrent);
+    $("tl-export-png").addEventListener("click", exportTierListPng);
+    $("tl-export-json").addEventListener("click", exportSavedLists);
+    $("tl-import-json").addEventListener("change", function () { importSavedLists(this.files && this.files[0]); this.value = ""; });
     $("tl-share").addEventListener("click", function () {
       tl.title = $("tl-title").value.trim().slice(0, 60);
       saveDraft();
@@ -1636,6 +1803,7 @@
     });
 
     updateStats();
+    loadCommunityVotes();
     window.addEventListener("hashchange", route);
     route();
   }
