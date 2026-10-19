@@ -758,6 +758,15 @@
 
     var top = GAMES.filter(function (g) { return g.rank === "S"; }).slice(0, 6);
     $("home-top").innerHTML = top.map(gameCard).join("");
+    renderRecentGames();
+  }
+
+  function renderRecentGames() {
+    var box = $("home-recent");
+    if (!box) return;
+    var list = recentGames.map(function (id) { return byId[id]; }).filter(Boolean);
+    box.innerHTML = list.map(gameCard).join("");
+    box.closest(".block").hidden = list.length === 0;
   }
 
   /* ---- Catalogue ---- */
@@ -796,6 +805,11 @@
   }
 
   function renderCatalog() {
+    var suggestions = $("game-search-suggestions");
+    if (suggestions && suggestions.getAttribute("data-ready") !== "true") {
+      suggestions.innerHTML = GAMES.map(function (g) { return "<option value=\"" + esc(g.name) + "\"></option>"; }).join("");
+      suggestions.setAttribute("data-ready", "true");
+    }
     var chips = '<button type="button" class="chip' + (filters.cat === "all" ? " active" : "") + '" data-action="filter-cat" data-cat="all">Toutes</button>';
     chips += CATEGORIES.map(function (c) {
       return '<button type="button" class="chip' + (filters.cat === c.id ? " active" : "") + '" data-action="filter-cat" data-cat="' + c.id + '">' + c.icon + " " + esc(c.label) + "</button>";
@@ -886,6 +900,53 @@
   function renderRanking() {
     var cat = $("ranking-category").value || "all";
     $("ranking-board").innerHTML = rankedTiers(cat, false).map(function (t) { return tierRow(t, true); }).join("");
+    renderCommunityRanking();
+  }
+
+  function renderCommunityRanking() {
+    var board = $("community-board");
+    if (!board) return;
+    var tally = {};
+    var totalVotes = 0;
+    Object.keys(communityVotes).forEach(function (gameKey) {
+      var ranks = communityVotes[gameKey] || {};
+      var count = Object.keys(ranks).reduce(function (sum, rank) { return sum + ranks[rank]; }, 0);
+      if (count < 1) return;
+      totalVotes += count;
+      var winner = RANKS.slice().sort(function (x, y) {
+        return (ranks[y] || 0) - (ranks[x] || 0) || RANKS.indexOf(x) - RANKS.indexOf(y);
+      })[0];
+      tally[gameKey] = { rank: winner, votes: count };
+    });
+    var totalLabel = $("community-vote-count");
+    if (totalLabel) totalLabel.textContent = totalVotes + " vote" + (totalVotes === 1 ? "" : "s") + " enregistré" + (totalVotes === 1 ? "" : "s");
+    var cat = $("ranking-category") ? $("ranking-category").value || "all" : "all";
+    if (!totalVotes) {
+      board.innerHTML = '<div class="empty-state"><p class="empty-title">Pas encore de votes communautaires</p><p>Connecte-toi à GitHub pour proposer un rang aux jeux du catalogue.</p><a class="btn btn-primary" href="https://github.com/LaGoldene/roblox-tier-list/issues/new?template=community-vote.yml" target="_blank" rel="noopener noreferrer">Proposer un vote</a></div>';
+      return;
+    }
+    var tiers = RANKS.map(function (rank) {
+      var games = GAMES.filter(function (g) {
+        return (cat === "all" || g.cat === cat) && tally[slug(g.name)] && tally[slug(g.name)].rank === rank;
+      }).map(function (g) { return g.id; });
+      return { id: "community-" + rank, name: rank, color: RANK_COLORS[rank], games: games };
+    }).filter(function (tier) { return tier.games.length; });
+    board.innerHTML = tiers.map(function (tier) { return tierRow(tier, true); }).join("");
+  }
+
+  function loadCommunityVotes() {
+    fetch("community-votes.json?update=" + Date.now(), { cache: "no-store" })
+      .then(function (response) { if (!response.ok) throw new Error("HTTP " + response.status); return response.json(); })
+      .then(function (data) {
+        communityVotes = {};
+        (Array.isArray(data.votes) ? data.votes : []).forEach(function (vote) {
+          if (!vote || typeof vote.gameKey !== "string" || RANKS.indexOf(vote.rank) === -1) return;
+          if (!communityVotes[vote.gameKey]) communityVotes[vote.gameKey] = {};
+          communityVotes[vote.gameKey][vote.rank] = (communityVotes[vote.gameKey][vote.rank] || 0) + 1;
+        });
+        renderCommunityRanking();
+      })
+      .catch(function (error) { console.warn("Classement communautaire indisponible :", error); });
   }
 
   function rankingToCreator() {
@@ -1237,6 +1298,9 @@
     var g = byId[id];
     if (!g) return;
     currentGameId = id;
+    recentGames = [id].concat(recentGames.filter(function (x) { return x !== id; })).slice(0, 6);
+    store.set("rtl_recent_games", recentGames);
+    if (currentKey === "home") renderRecentGames();
     var thumb = $("gd-thumb");
     thumb.setAttribute("style", thumbStyle(g));
     thumb.textContent = initials(g.name);
@@ -1739,6 +1803,7 @@
     });
 
     updateStats();
+    loadCommunityVotes();
     window.addEventListener("hashchange", route);
     route();
   }
