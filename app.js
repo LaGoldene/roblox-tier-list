@@ -935,7 +935,7 @@
   }
 
   function loadCommunityVotes() {
-    fetch("community-votes.json?update=" + Date.now(), { cache: "no-store" })
+    fetch("https://raw.githubusercontent.com/LaGoldene/roblox-tier-list/main/community-votes.json?update=" + Date.now(), { cache: "no-store" })
       .then(function (response) { if (!response.ok) throw new Error("HTTP " + response.status); return response.json(); })
       .then(function (data) {
         communityVotes = {};
