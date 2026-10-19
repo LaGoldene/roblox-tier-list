@@ -1,7 +1,6 @@
 name: Vote communautaire
 description: Propose ton rang pour un jeu Roblox du catalogue
 title: "[Vote communautaire] "
-labels: ["community-vote"]
 body:
   - type: markdown
     attributes:
