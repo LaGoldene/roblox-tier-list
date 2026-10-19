@@ -1729,3 +1729,21 @@ input[type="text"]:focus, input[type="search"]:focus, select:focus, textarea:foc
   #view-tierlist .editor-actions .btn { flex: 1 1 auto; }
   #view-tierlist .block-head { align-items: flex-start; flex-direction: column; }
 }
+
+
+/* Votes communautaires : petit compteur lisible sur chaque jeu classé. */
+.community-votes-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  margin-top: 2px;
+  padding: 2px 5px;
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 0.58rem;
+  line-height: 1.2;
+  white-space: nowrap;
+}
