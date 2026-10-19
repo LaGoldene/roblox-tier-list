@@ -775,6 +775,11 @@
       return true;
     });
     list.sort(function (a, b) {
+      if (filters.sort === "my-rating") {
+        var ratingA = Number(ratings[a.id]) || 0;
+        var ratingB = Number(ratings[b.id]) || 0;
+        return ratingB - ratingA || a.name.localeCompare(b.name, "fr");
+      }
       if (filters.sort === "name") return a.name.localeCompare(b.name, "fr");
       if (filters.sort === "category") {
         return catLabel(a.cat).localeCompare(catLabel(b.cat), "fr") || a.name.localeCompare(b.name, "fr");
