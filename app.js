@@ -112,14 +112,18 @@
       var game = byId[element.getAttribute("data-game-thumb")];
       if (!game) return;
       element.innerHTML = thumbContent(game);
-      var image = element.querySelector("img");
-      if (image) {
-        image.addEventListener("error", function () {
-          element.textContent = initials(game.name || "");
-        }, { once: true });
-      }
     });
   }
+
+  /* Fallback centralisé : couvre aussi les cartes ajoutées après le chargement des miniatures. */
+  document.addEventListener("error", function (event) {
+    var image = event.target;
+    if (!(image instanceof HTMLImageElement)) return;
+    var container = image.closest("[data-game-thumb]");
+    if (!container) return;
+    var game = byId[container.getAttribute("data-game-thumb")];
+    container.textContent = initials(game && game.name ? game.name : "");
+  }, true);
 
   function loadRobloxThumbnails() {
     if (ROBLOX_THUMBNAILS_STARTED) return;
@@ -1282,7 +1286,9 @@
       if (rating >= 1 && rating <= 5) {
         if (Number(ratings[id]) === rating) delete ratings[id]; else ratings[id] = rating;
         store.set("rtl_ratings", ratings);
-        if (currentKey === "catalog") renderCatalog(); else renderHome();
+        if (currentKey === "catalog") renderCatalog();
+        else if (currentKey === "favorites") renderFavorites();
+        else if (currentKey === "home") renderHome();
       }
     }
     else if (a === "filter-cat") {
