@@ -130,7 +130,7 @@
     ROBLOX_THUMBNAILS_STARTED = true;
 
     /* Miniatures pré-générées par GitHub Actions : pas d'appel API Roblox depuis le navigateur. */
-    fetch("thumbnails.json?update=" + Date.now(), { cache: "no-store" })
+    fetch("thumbnails.json", { cache: "no-cache" })
       .then(function (response) {
         if (!response.ok) throw new Error("HTTP " + response.status);
         return response.json();
@@ -591,6 +591,8 @@
   var ratings = store.get("rtl_ratings", {}) || {};
   var recentGames = (store.get("rtl_recent_games", []) || []).filter(function (id) { return !!byId[id]; }).slice(0, 6);
   var communityVotes = {};
+  var communityUpdatedAt = null;
+  var searchDebounceTimer = null;
   var lists = [];
   var userCodes = store.get("rtl_codes", {}) || {};
   var tl = null;
@@ -659,10 +661,18 @@
 
   /* ---- Partage par lien ---- */
   function encodeList(l) {
+    var custom = {};
+    l.tiers.forEach(function (tier) {
+      tier.games.forEach(function (id) {
+        var game = byId[id];
+        if (game && game.custom) custom[id] = { id: id, name: game.name, cat: game.cat, placeId: game.placeId, desc: game.desc };
+      });
+    });
     var data = {
       v: 1,
       t: l.title,
-      r: l.tiers.map(function (t) { return [t.name, t.color.replace("#", ""), t.games]; })
+      r: l.tiers.map(function (t) { return [t.name, t.color.replace("#", ""), t.games]; }),
+      c: Object.keys(custom).map(function (id) { return custom[id]; })
     };
     return toB64(JSON.stringify(data));
   }
@@ -671,9 +681,26 @@
     try {
       var d = JSON.parse(fromB64(s));
       if (!d || !Array.isArray(d.r)) return null;
+      var idMap = {};
+      var addedCustom = false;
+      (Array.isArray(d.c) ? d.c : []).slice(0, MAX_CUSTOM).forEach(function (item) {
+        if (!item || typeof item.name !== "string" || !item.name.trim()) return;
+        var existing = GAMES.filter(function (g) { return norm(g.name) === norm(item.name); })[0];
+        if (existing) { if (item.id) idMap[item.id] = existing.id; return; }
+        if (customCount() >= MAX_CUSTOM) return;
+        var newId = typeof item.id === "string" && /^u-[a-z0-9]{3,12}$/.test(item.id) && !byId[item.id] ? item.id : "u-" + uid();
+        var game = makeCustom({ id: newId, name: item.name, cat: item.cat, placeId: item.placeId, desc: item.desc });
+        if (!game) return;
+        addToCatalog(game);
+        if (item.id) idMap[item.id] = game.id;
+        addedCustom = true;
+      });
+      if (addedCustom) persistCustom();
       return cleanList({
         title: d.t,
-        tiers: d.r.map(function (r) { return { name: r[0], color: "#" + r[1], games: r[2] }; })
+        tiers: d.r.map(function (r) {
+          return { name: r[0], color: "#" + r[1], games: (Array.isArray(r[2]) ? r[2] : []).map(function (id) { return idMap[id] || id; }) };
+        })
       });
     } catch (e) {
       return null;
@@ -920,6 +947,12 @@
     });
     var totalLabel = $("community-vote-count");
     if (totalLabel) totalLabel.textContent = totalVotes + " vote" + (totalVotes === 1 ? "" : "s") + " enregistré" + (totalVotes === 1 ? "" : "s");
+    var updatedLabel = $("community-updated");
+    if (updatedLabel) {
+      updatedLabel.textContent = communityUpdatedAt && !isNaN(Date.parse(communityUpdatedAt))
+        ? "Dernière mise à jour : " + new Date(communityUpdatedAt).toLocaleString("fr-FR")
+        : "Les votes sont mis à jour après validation par GitHub Actions.";
+    }
     var cat = $("ranking-category") ? $("ranking-category").value || "all" : "all";
     if (!totalVotes) {
       board.innerHTML = '<div class="empty-state"><p class="empty-title">Pas encore de votes communautaires</p><p>Connecte-toi à GitHub pour proposer un rang aux jeux du catalogue.</p><a class="btn btn-primary" href="https://github.com/LaGoldene/roblox-tier-list/issues/new?template=community-vote.yml" target="_blank" rel="noopener noreferrer">Proposer un vote</a></div>';
@@ -932,13 +965,24 @@
       return { id: "community-" + rank, name: rank, color: RANK_COLORS[rank], games: games };
     }).filter(function (tier) { return tier.games.length; });
     board.innerHTML = tiers.map(function (tier) { return tierRow(tier, true); }).join("");
+    board.querySelectorAll(".tier-game[data-id]").forEach(function (element) {
+      var game = byId[element.getAttribute("data-id")];
+      var result = game && tally[slug(game.name)];
+      if (!result) return;
+      var badge = document.createElement("span");
+      badge.className = "community-votes-badge";
+      badge.textContent = result.votes + " vote" + (result.votes === 1 ? "" : "s");
+      badge.setAttribute("title", result.votes + " vote" + (result.votes === 1 ? "" : "s") + " pour ce jeu");
+      element.appendChild(badge);
+    });
   }
 
   function loadCommunityVotes() {
-    fetch("https://raw.githubusercontent.com/LaGoldene/roblox-tier-list/main/community-votes.json?update=" + Date.now(), { cache: "no-store" })
+    fetch("community-votes.json", { cache: "no-cache" })
       .then(function (response) { if (!response.ok) throw new Error("HTTP " + response.status); return response.json(); })
       .then(function (data) {
         communityVotes = {};
+        communityUpdatedAt = data && typeof data.updatedAt === "string" ? data.updatedAt : null;
         (Array.isArray(data.votes) ? data.votes : []).forEach(function (vote) {
           if (!vote || typeof vote.gameKey !== "string" || RANKS.indexOf(vote.rank) === -1) return;
           if (!communityVotes[vote.gameKey]) communityVotes[vote.gameKey] = {};
@@ -946,7 +990,11 @@
         });
         renderCommunityRanking();
       })
-      .catch(function (error) { console.warn("Classement communautaire indisponible :", error); });
+      .catch(function (error) {
+        var label = $("community-updated");
+        if (label) label.textContent = "Impossible de charger les votes pour le moment.";
+        console.warn("Classement communautaire indisponible :", error);
+      });
   }
 
   function rankingToCreator() {
@@ -1381,7 +1429,7 @@
     list.tiers.forEach(function (t) {
       t.games.forEach(function (id) { if (byId[id] && byId[id].custom) custom++; });
     });
-    if (custom) info += " Attention : " + custom + " jeu" + (custom > 1 ? "x" : "") + " ajouté" + (custom > 1 ? "s" : "") + " par toi n'apparaîtr" + (custom > 1 ? "ont" : "a") + " pas chez les personnes qui reçoivent le lien.";
+    if (custom) info += " " + custom + " jeu" + (custom > 1 ? "x" : "") + " personnalisé" + (custom > 1 ? "s" : "") + " inclus dans le lien ; celui-ci peut être plus long.";
     if (location.protocol === "file:") info += " Ce lien ne marchera pour d'autres personnes qu'une fois le site publié en ligne.";
     $("share-info").textContent = info;
     openModal($("share-modal"));
@@ -1668,12 +1716,21 @@
     });
 
     /* Catalogue */
-    $("search-input").addEventListener("input", function () { filters.q = this.value; resetLimit(); renderCatalog(); });
+    $("search-input").addEventListener("input", function () {
+      var query = this.value;
+      clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = setTimeout(function () {
+        filters.q = query;
+        resetLimit();
+        renderCatalog();
+      }, 110);
+    });
     $("rank-filter").addEventListener("change", function () { filters.rank = this.value; resetLimit(); renderCatalog(); });
     $("sort-select").addEventListener("change", function () { filters.sort = this.value; resetLimit(); renderCatalog(); });
     $("fav-only").addEventListener("change", function () { filters.favOnly = this.checked; resetLimit(); renderCatalog(); });
     $("load-more").addEventListener("click", function () { filters.limit += PAGE_SIZE; renderCatalog(); });
     $("reset-filters").addEventListener("click", function () {
+      clearTimeout(searchDebounceTimer);
       filters = { q: "", cat: "all", rank: "all", sort: "rank", favOnly: false, limit: PAGE_SIZE };
       syncCatalogControls();
       renderCatalog();
