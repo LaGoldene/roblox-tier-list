@@ -1,6 +1,7 @@
 import hashlib
 import json
 import os
+from datetime import datetime, timezone
 import re
 import unicodedata
 
@@ -47,6 +48,7 @@ if game_key in known and login and rank in {"S", "A", "B", "C", "D"}:
     else:
         votes.append({"gameKey": game_key, "rank": rank, "voterHash": voter_hash})
         data["votes"] = votes
+        data["updatedAt"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
             f.write("\n")
