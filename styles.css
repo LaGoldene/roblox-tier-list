@@ -1694,3 +1694,29 @@ input[type="text"]:focus, input[type="search"]:focus, select:focus, textarea:foc
   .personal-rating { gap: 3px; font-size: .72rem; }
   .rating-star { min-width: 22px; min-height: 26px; font-size: 1rem; }
 }
+
+
+/* Miniatures Roblox : taille explicite pour éviter les images écrasées ou hors cadre */
+.game-thumb {
+  overflow: hidden;
+  min-width: 0;
+}
+.game-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  object-fit: cover;
+  object-position: center;
+}
+.mini-thumb {
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+.mini-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
