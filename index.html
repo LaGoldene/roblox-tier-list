@@ -315,6 +315,11 @@
         <section class="block" aria-labelledby="saved-title">
           <div class="block-head">
             <h2 id="saved-title">Mes Tier Lists sauvegardées</h2>
+            <div class="editor-actions">
+              <button type="button" class="btn btn-secondary btn-small" id="tl-export-json">Exporter JSON</button>
+              <label class="btn btn-secondary btn-small import-json-label" for="tl-import-json">Importer JSON</label>
+              <input type="file" id="tl-import-json" accept=".json,application/json" hidden>
+            </div>
           </div>
           <div class="saved-list" id="tl-saved-list"></div>
           <p class="muted" id="tl-saved-empty" hidden>Aucune Tier List sauvegardée pour le moment.</p>
