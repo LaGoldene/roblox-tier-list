@@ -589,6 +589,7 @@
   var favs = (store.get("rtl_favs", []) || []).filter(function (id) { return byId[id]; });
   /* Notes personnelles : stockées localement, jamais envoyées à un serveur. */
   var ratings = store.get("rtl_ratings", {}) || {};
+  var recentGames = (store.get("rtl_recent_games", []) || []).filter(function (id) { return !!byId[id]; }).slice(0, 6);
   var lists = [];
   var userCodes = store.get("rtl_codes", {}) || {};
   var tl = null;
@@ -986,6 +987,104 @@
 
   function zoneTier(zone) {
     return zone.dataset.drop === "pool" ? null : zone.dataset.tier;
+  }
+
+
+  function downloadBlob(blob, filename) {
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  function safeFilename(name) {
+    return (name || "tier-list").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 50) || "tier-list";
+  }
+
+  function exportTierListPng() {
+    tl.title = ($("tl-title").value.trim() || "Ma Tier List").slice(0, 60);
+    saveDraft();
+    var canvas = document.createElement("canvas");
+    var ctx = canvas.getContext("2d");
+    if (!ctx) { toast("Export PNG indisponible sur ce navigateur."); return; }
+    var width = 1400, pad = 48, titleH = 116, rowGap = 14, labelW = 150, innerW = width - pad * 2;
+    ctx.font = "700 22px Nunito, Arial, sans-serif";
+    var layouts = tl.tiers.map(function (tier) {
+      var x = pad + labelW + 18, y = 0, lineH = 46, rowH = 24, gap = 10, maxX = width - pad;
+      var items = [];
+      tier.games.forEach(function (id) {
+        var game = byId[id]; if (!game) return;
+        var w = Math.min(280, Math.max(100, ctx.measureText(game.name).width + 34));
+        if (x + w > maxX) { x = pad + labelW + 18; y += lineH + gap; }
+        items.push({ name: game.name, x: x, y: y, w: w });
+        x += w + gap;
+      });
+      return { tier: tier, items: items, height: Math.max(76, y + lineH + 12) };
+    });
+    var height = pad + titleH + layouts.reduce(function (sum, row) { return sum + row.height + rowGap; }, 0) + pad + 54;
+    canvas.width = width; canvas.height = height;
+    ctx.fillStyle = "#f6f7fb"; ctx.fillRect(0, 0, width, height);
+    ctx.fillStyle = "#171827"; ctx.font = "900 42px Nunito, Arial, sans-serif";
+    ctx.fillText(tl.title || "Ma Tier List", pad, pad + 42);
+    ctx.fillStyle = "#687087"; ctx.font = "600 18px Nunito, Arial, sans-serif";
+    ctx.fillText("Roblox Tier List · " + new Date().toLocaleDateString("fr-FR"), pad, pad + 76);
+    var top = pad + titleH;
+    layouts.forEach(function (row) {
+      ctx.fillStyle = "#ffffff"; ctx.strokeStyle = "#e1e4ee"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.roundRect(pad, top, innerW, row.height, 18); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = row.tier.color; ctx.beginPath(); ctx.roundRect(pad + 12, top + 12, labelW - 24, row.height - 24, 12); ctx.fill();
+      ctx.fillStyle = "#ffffff"; ctx.font = "900 25px Nunito, Arial, sans-serif";
+      ctx.textAlign = "center"; ctx.fillText(row.tier.name || "Rang", pad + labelW / 2, top + row.height / 2 + 8); ctx.textAlign = "left";
+      row.items.forEach(function (item) {
+        var x = item.x, y = top + 14 + item.y;
+        ctx.fillStyle = "#f0f1f7"; ctx.beginPath(); ctx.roundRect(x, y, item.w, 42, 10); ctx.fill();
+        ctx.fillStyle = "#25283b"; ctx.font = "700 18px Nunito, Arial, sans-serif";
+        ctx.save(); ctx.beginPath(); ctx.rect(x + 8, y, item.w - 16, 42); ctx.clip();
+        ctx.fillText(item.name, x + 14, y + 27); ctx.restore();
+      });
+      top += row.height + rowGap;
+    });
+    ctx.fillStyle = "#7c8295"; ctx.font = "600 16px Nunito, Arial, sans-serif";
+    ctx.fillText("Créé gratuitement sur lagoldene.github.io/roblox-tier-list", pad, height - pad / 2);
+    canvas.toBlob(function (blob) {
+      if (!blob) { toast("Impossible de créer l’image."); return; }
+      downloadBlob(blob, safeFilename(tl.title) + ".png");
+      toast("Image PNG prête à partager !");
+    }, "image/png");
+  }
+
+  function exportSavedLists() {
+    var payload = { format: "roblox-tier-list", version: 1, exportedAt: new Date().toISOString(), lists: lists };
+    downloadBlob(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" }), "mes-tier-lists.json");
+    toast("Sauvegarde JSON exportée.");
+  }
+
+  function importSavedLists(file) {
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { toast("Fichier trop volumineux (maximum 2 Mo)."); return; }
+    file.text().then(function (text) {
+      var data = JSON.parse(text);
+      var incoming = Array.isArray(data) ? data : data && data.lists;
+      if (!Array.isArray(incoming)) throw new Error("format");
+      var added = 0;
+      incoming.slice(0, 100).forEach(function (item) {
+        var clean = cleanList(item);
+        if (!clean) return;
+        clean.id = uid();
+        clean.updated = Date.now();
+        clean.title = (clean.title || "Tier List importée").slice(0, 60);
+        lists.unshift(clean); added++;
+      });
+      if (!added) { toast("Aucune Tier List valide trouvée."); return; }
+      lists = lists.slice(0, 100);
+      store.set("rtl_lists", lists); renderSaved(); updateStats();
+      toast(added + " Tier List" + (added > 1 ? "s importées" : " importée") + " !");
+    }).catch(function () { toast("Fichier invalide. Choisis un export JSON de Roblox Tier List."); });
   }
 
   function saveCurrent() {
@@ -1536,6 +1635,9 @@
     /* Créateur */
     $("tl-title").addEventListener("input", function () { tl.title = this.value.slice(0, 60); saveDraft(); });
     $("tl-save").addEventListener("click", saveCurrent);
+    $("tl-export-png").addEventListener("click", exportTierListPng);
+    $("tl-export-json").addEventListener("click", exportSavedLists);
+    $("tl-import-json").addEventListener("change", function () { importSavedLists(this.files && this.files[0]); this.value = ""; });
     $("tl-share").addEventListener("click", function () {
       tl.title = $("tl-title").value.trim().slice(0, 60);
       saveDraft();
