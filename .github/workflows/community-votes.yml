@@ -8,9 +8,13 @@ permissions:
   contents: write
   issues: write
 
+concurrency:
+  group: community-votes
+  cancel-in-progress: false
+
 jobs:
   record-vote:
-    if: contains(github.event.issue.labels.*.name, 'community-vote')
+    if: startsWith(github.event.issue.title, '[Vote communautaire]')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -43,7 +47,7 @@ jobs:
               ? 'Merci ! Ton vote a été enregistré dans le classement communautaire. Un seul vote par compte GitHub et par jeu est accepté.'
               : outcome === 'duplicate'
                 ? 'Un vote de ce compte pour ce jeu existe déjà. Le classement conserve le premier vote.'
-                : 'Le vote n’a pas été enregistré. Vérifie le nom du jeu et choisis un rang S, A, B, C ou D dans le formulaire.';
+                : 'Le vote n’a pas été enregistré. Vérifie le nom du jeu (il doit exister dans le catalogue) et choisis un rang S, A, B, C ou D.';
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
