@@ -590,6 +590,7 @@
   /* Notes personnelles : stockées localement, jamais envoyées à un serveur. */
   var ratings = store.get("rtl_ratings", {}) || {};
   var recentGames = (store.get("rtl_recent_games", []) || []).filter(function (id) { return !!byId[id]; }).slice(0, 6);
+  var communityVotes = {};
   var lists = [];
   var userCodes = store.get("rtl_codes", {}) || {};
   var tl = null;
