@@ -1,0 +1,60 @@
+name: Community ranking votes
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  record-vote:
+    if: contains(github.event.issue.labels.*.name, 'community-vote')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate and record vote
+        id: vote
+        env:
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+        run: python .github/scripts/process_community_vote.py
+
+      - name: Commit vote tally
+        if: steps.vote.outputs.outcome == 'accepted'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add community-votes.json
+          git commit -m "Record community ranking vote"
+          git push
+
+      - name: Explain vote result
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const outcome = '${{ steps.vote.outputs.outcome }}';
+            const message = outcome === 'accepted'
+              ? 'Merci ! Ton vote a été enregistré dans le classement communautaire. Un seul vote par compte GitHub et par jeu est accepté.'
+              : outcome === 'duplicate'
+                ? 'Un vote de ce compte pour ce jeu existe déjà. Le classement conserve le premier vote.'
+                : 'Le vote n’a pas été enregistré. Vérifie le nom du jeu et choisis un rang S, A, B, C ou D dans le formulaire.';
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: message
+            });
+            if (outcome === 'duplicate' || outcome === 'invalid') {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                state: 'closed'
+              });
+            }
